@@ -3,21 +3,18 @@ using UnityEngine;
 using Jint;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using Jint.Native;
 using Jint.Runtime.Modules;
 using Nox.Jint;
 using Nox.Players;
 using JintEngine = Jint.Engine;
 using Logger = Nox.CCK.Utils.Logger;
-using api.nox.jint;
 using Jint.Runtime;
 using Jint.Runtime.Interop;
 using Nox.CCK.Scripting;
-using Cysharp.Threading.Tasks;
+using Nox.Jint.Runtime;
 
-namespace api.nox.session.jint {
+namespace Nox.Sessions.Jint.Runtime {
 	public class JintBackingSession : MonoBehaviour, IJintBacking {
 		public JintBackingModule module;
 		public IJintScript Script;

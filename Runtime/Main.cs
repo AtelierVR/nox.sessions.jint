@@ -1,5 +1,4 @@
 using System;
-using api.nox.jint;
 using Nox.CCK.Mods.Cores;
 using Nox.CCK.Mods.Events;
 using Nox.CCK.Mods.Initializers;
@@ -7,7 +6,7 @@ using Nox.Jint;
 using Nox.Scripting;
 using Nox.Worlds;
 
-namespace api.nox.session.jint {
+namespace Nox.Sessions.Jint.Runtime {
 	public class Main : IMainModInitializer {
 		static internal IMainModCoreAPI CoreAPI;
 		private EventSubscription[] _events = Array.Empty<EventSubscription>();

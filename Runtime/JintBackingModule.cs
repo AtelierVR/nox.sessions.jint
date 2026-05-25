@@ -9,7 +9,7 @@ using Nox.Worlds;
 using UnityEngine;
 using Logger = Nox.CCK.Utils.Logger;
 
-namespace api.nox.session.jint {
+namespace Nox.Sessions.Jint.Runtime {
 	public class JintBackingModule : MonoBehaviour, ISessionModule {
 		#region Internal
 

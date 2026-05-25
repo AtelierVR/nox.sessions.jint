@@ -43,7 +43,7 @@
   ],
   "entrypoints": {
     "main": [
-      "nox.session.jint.Main"
+      "Nox.Sessions.Jint.Runtime.Main"
     ]
   },
   "references": [],

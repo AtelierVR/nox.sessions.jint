@@ -1,16 +1,15 @@
 using System;
 using System.Linq;
-using api.nox.jint;
 using Jint;
 using Jint.Native.Object;
 using Nox.CCK.Scripting;
 using Nox.Jint;
+using Nox.Jint.Runtime;
 using Nox.Scripting;
-using Nox.Sessions;
 using UnityEngine;
 using JintEngine = Jint.Engine;
 
-namespace api.nox.session.jint {
+namespace Nox.Sessions.Jint.Runtime {
 	/// <summary>
 	/// Jint-specific <see cref="IScriptingContext"/> tied to a single
 	/// <see cref="JintBackingSession"/> instance.
@@ -47,7 +46,7 @@ namespace api.nox.session.jint {
 				return value;
 			// If the converter declares bindings, build a Jint JS object
 			if (converter.Bindings.Count > 0)
-				return api.nox.jint.JintTypeAdapter.BuildInstance(_backing.Engine, converter, value, this);
+				return JintTypeAdapter.BuildInstance(_backing.Engine, converter, value, this);
 			// Otherwise delegate to ToScript for raw conversion
 			return converter.ToScript(this, value);
 		}

@@ -1,6 +1,6 @@
 ﻿{
-  "name": "Nox.Sessions.Jint",
-  "rootNamespace": "Nox.Sessions.Jint",
+  "name": "Nox.Sessions.Jint.Runtime",
+  "rootNamespace": "Nox.Sessions.Jint.Runtime",
   "references": [
     "Nox.CCK",
     "UniTask",
@@ -12,7 +12,8 @@
     "Nox.Players",
     "Nox.Entities",
     "Nox.Table",
-    "Nox.CCK.Scripting"
+    "Nox.CCK.Scripting",
+    "Nox.Jint.Runtime"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
