@@ -1,0 +1,26 @@
+﻿{
+  "name": "Nox.Sessions.Jint",
+  "rootNamespace": "Nox.Sessions.Jint",
+  "references": [
+    "Nox.CCK",
+    "UniTask",
+    "Nox.Sessions",
+    "Nox.Worlds",
+    "Nox.Mods.Jint",
+    "Nox.Jint",
+    "Nox.Scripting",
+    "Nox.Players",
+    "Nox.Entities",
+    "Nox.Table",
+    "Nox.CCK.Scripting"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

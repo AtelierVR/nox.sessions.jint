@@ -1,0 +1,52 @@
+﻿{
+  "type": "mod",
+  "id": "nox.sessions.jint",
+  "provides": [
+    "fr.hactazia.session.jint",
+    "session.jint"
+  ],
+  "name": "Session Jint Scripting",
+  "version": "1.0.0",
+  "description": "Jint scripting backend bindings for Nox session scripting.",
+  "license": "GPL-3.0",
+  "icon": null,
+  "contact": {
+    "email": "hactazia@gmail.com",
+    "source": "https://github.com/AtelierVR/nox.sessions.jint",
+    "website": "https://nox.hactazia.fr/",
+    "issues": "https://github.com/AtelierVR/nox.sessions.jint/issues"
+  },
+  "authors": [
+    {
+      "name": "Hactazia",
+      "email": "hactazia@gmail.com",
+      "website": "https://hactazia.fr/"
+    }
+  ],
+  "contributors": [],
+  "relations": [
+    {
+      "id": "jint",
+      "type": "depends",
+      "version": ">=1.0.0"
+    },
+    {
+      "id": "session",
+      "type": "depends",
+      "version": ">=1.0.0"
+    },
+    {
+      "id": "scripting",
+      "type": "depends",
+      "version": ">=1.0.0"
+    }
+  ],
+  "entrypoints": {
+    "main": [
+      "nox.session.jint.Main"
+    ]
+  },
+  "references": [],
+  
+  "permissions": []
+}

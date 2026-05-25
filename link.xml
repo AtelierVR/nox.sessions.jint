@@ -1,0 +1,5 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<linker>
+    <assembly fullname="Nox.Mods.Sessions.Jint" preserve="all" />
+    <assembly fullname="Nox.Sessions.Jint" preserve="all" />
+</linker>

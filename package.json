@@ -1,0 +1,6 @@
+﻿{
+  "name": "nox.sessions.jint",
+  "displayName": "Nox - Session Jint Scripting",
+  "version": "1.0.0",
+  "description": "Jint scripting backend bindings for Nox session scripting."
+}
