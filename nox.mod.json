@@ -1,4 +1,4 @@
-﻿{
+{
   "type": "mod",
   "id": "nox.sessions.jint",
   "provides": [
@@ -26,8 +26,7 @@
   "contributors": [],
   "relations": [
     {
-      "id": "jint",
-      "type": "depends",
+      "id": "jint",`n      "type": "depends",`n      "register": "nuget:3.0.0",
       "version": ">=1.0.0"
     },
     {
