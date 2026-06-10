@@ -23,10 +23,10 @@
       "website": "https://hactazia.fr/"
     }
   ],
-  "contributors": [],
   "relations": [
     {
-      "id": "jint", "register": "nuget:3.0.0",`n      "type": "depends",`n      "register": "nuget:3.0.0",
+      "id": "jint",
+      "type": "depends",
       "version": ">=1.0.0"
     },
     {
@@ -44,8 +44,5 @@
     "main": [
       "Nox.Sessions.Jint.Runtime.Main"
     ]
-  },
-  "references": [],
-  
-  "permissions": []
+  }
 }
