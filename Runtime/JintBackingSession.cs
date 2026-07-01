@@ -188,14 +188,21 @@ namespace Nox.Sessions.Jint.Runtime {
 			}
 		}
 
-		private void OnDestroy() {
+		public void OnDestroy() {
 			if (Engine == null)
 				return;
+			Invoke("onDestroy");
 			Main.CoreAPI.EventAPI.Emit("jint_engine_destroyed", this, Engine);
 			Engine.Dispose();
 			Engine  = null;
 			Context = null;
 		}
+
+		public void OnEnable()
+			=> Invoke("onEnable");
+
+		public void OnDisable()
+			=> Invoke("onDisable");
 
         public void Awake()
 			=> Invoke("onAwake");

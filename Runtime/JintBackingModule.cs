@@ -58,7 +58,7 @@ namespace Nox.Sessions.Jint.Runtime {
 		public void OnLoaded(ISession session)
 			=> Session = session;
 
-		private void OnDestroy() {
+		public void OnDestroy() {
 			foreach (var backing in backings.Where(backing => backing))
 				Destroy(backing);
 			backings.Clear();
