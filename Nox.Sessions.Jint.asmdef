@@ -6,7 +6,6 @@
     "UniTask",
     "Nox.Sessions",
     "Nox.Worlds",
-    "Nox.Mods.Jint",
     "Nox.Jint",
     "Nox.Scripting",
     "Nox.Players",
