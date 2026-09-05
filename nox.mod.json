@@ -27,17 +27,20 @@
     {
       "id": "jint",
       "type": "depends",
-      "version": ">=1.0.0"
+      "version": ">=1.0.0",
+      "register": "git+https://github.com/AtelierVR/nox.jint.git"
     },
     {
       "id": "session",
       "type": "depends",
-      "version": ">=1.0.0"
+      "version": ">=1.0.0",
+      "register": "git+https://github.com/AtelierVR/nox.sessions.git"
     },
     {
       "id": "scripting",
       "type": "depends",
-      "version": ">=1.0.0"
+      "version": ">=1.0.0",
+      "register": "git+https://github.com/AtelierVR/nox.scripting.git"
     }
   ],
   "entrypoints": {
