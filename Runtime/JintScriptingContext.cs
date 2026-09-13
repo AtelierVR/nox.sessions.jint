@@ -142,7 +142,7 @@ namespace Nox.Sessions.Jint.Runtime {
 				var jsVal = jsObj.Get(name);
 				args[i] = jsVal.IsUndefined() || jsVal.IsNull()
 					? null
-					: JintTypeAdapter.FromJsValue(jsVal);
+					: JintTypeAdapter.FromValue(jsVal);
 			}
 			return args;
 		}
