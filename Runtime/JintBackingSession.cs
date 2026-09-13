@@ -27,7 +27,9 @@ namespace Nox.Sessions.Jint.Runtime {
 		public string[] Tags = { "session" };
 
 		private bool _initialized;
+		private bool _destroyed;
 		private JintScriptingContext _context;
+		private const int SCRIPT_TIMEOUT_MS = 10000;
 
 		/// <summary>Expose the underlying engine for <see cref="JintScriptingContext"/>.</summary>
 		internal JintEngine Engine { get; private set; }
@@ -41,6 +43,7 @@ namespace Nox.Sessions.Jint.Runtime {
 					ctx => {
 						ctx.LimitMemory(67_108_864); // 64 MB per invocation
 						ctx.LimitRecursion(1024);
+						ctx.TimeoutInterval(TimeSpan.FromMilliseconds(SCRIPT_TIMEOUT_MS));
 						ctx.EnableModules(new DefaultModuleLoader(Main.JintAPI.GetModulesPath()));
 					}
 				);
@@ -189,35 +192,17 @@ namespace Nox.Sessions.Jint.Runtime {
 		}
 
 		public void OnDestroy() {
+			if (_destroyed)
+				return;
+			_destroyed = true;
 			if (Engine == null)
 				return;
-			Invoke("onDestroy");
 			Main.CoreAPI.EventAPI.Emit("jint_engine_destroyed", this, Engine);
+			_context?.Dispose();
 			Engine.Dispose();
 			Engine  = null;
 			Context = null;
 		}
-
-		public void OnEnable()
-			=> Invoke("onEnable");
-
-		public void OnDisable()
-			=> Invoke("onDisable");
-
-        public void Awake()
-			=> Invoke("onAwake");
-
-		public void Start()
-			=> Invoke("onStart");
-
-		public void Update()
-			=> Invoke("onUpdate");
-
-		public void LateUpdate()
-			=> Invoke("onLateUpdate");
-
-		public void FixedUpdate()
-			=> Invoke("onFixedUpdate");
 
         public void OnSessionSelected()
 			=> Invoke("onSessionSelected");

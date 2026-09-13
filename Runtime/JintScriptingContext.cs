@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using Jint;
 using Jint.Native.Object;
 using Nox.CCK.Scripting;
@@ -14,9 +15,10 @@ namespace Nox.Sessions.Jint.Runtime {
 	/// Jint-specific <see cref="IScriptingContext"/> tied to a single
 	/// <see cref="JintBackingSession"/> instance.
 	/// </summary>
-	sealed internal class JintScriptingContext : IJintScriptingContext {
+	sealed internal class JintScriptingContext : IJintScriptingContext, IDisposable {
 		private readonly JintBackingSession _backing;
 		private readonly IScriptingAPI _api;
+		private readonly CancellationTokenSource _cts = new();
 
 		public JintScriptingContext(JintBackingSession backing, IScriptingAPI api) {
 			_backing = backing;
@@ -30,6 +32,13 @@ namespace Nox.Sessions.Jint.Runtime {
 			=> _backing.gameObject;
 		public JintEngine Engine
 			=> _backing.Engine;
+		public CancellationToken CancellationToken
+			=> _cts.Token;
+
+		public void Dispose() {
+			_cts.Cancel();
+			_cts.Dispose();
+		}
 
 		/// <summary>
 		/// Converts a C# value to a script-friendly object using registered converters.
