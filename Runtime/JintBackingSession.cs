@@ -28,8 +28,14 @@ namespace Nox.Sessions.Jint.Runtime {
 
 		private bool _initialized;
 		private bool _destroyed;
+		private bool _awakeInvoked;
+		private bool _startInvoked;
 		private JintScriptingContext _context;
 		private const int SCRIPT_TIMEOUT_MS = 10000;
+
+		/// <summary>True once the engine exists — i.e. once the session was ready and the script started.</summary>
+		public bool Initialized
+			=> _initialized;
 
 		/// <summary>Expose the underlying engine for <see cref="JintScriptingContext"/>.</summary>
 		internal JintEngine Engine { get; private set; }
@@ -77,6 +83,11 @@ namespace Nox.Sessions.Jint.Runtime {
 				}
 
 				Main.CoreAPI.EventAPI.Emit("jint_engine_created", this, Engine);
+
+				// The script starts here, once the session is ready: it never ran before (see
+				// JintBackingModule.StartBackings), so `onAwake`/`onStart` are driven from this point.
+				Invoke("onAwake");
+				Invoke("onStart");
 			} catch (Exception e) {
 				Engine = null;
 				Logger.LogError(e, this);
@@ -105,6 +116,18 @@ namespace Nox.Sessions.Jint.Runtime {
 				if (!_initialized)
 					return;
 
+				// Unity may call Awake/Start before the session was ready (the call is lost) or after the
+				// start: the first call wins so the script gets each hook exactly once.
+				if (method == "onAwake") {
+					if (_awakeInvoked)
+						return;
+					_awakeInvoked = true;
+				} else if (method == "onStart") {
+					if (_startInvoked)
+						return;
+					_startInvoked = true;
+				}
+					
 				var methodRef = Context.Get(method);
 				if (methodRef.IsUndefined())
 					return;

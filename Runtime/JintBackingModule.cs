@@ -10,7 +10,23 @@ using UnityEngine;
 using Logger = Nox.CCK.Utils.Logger;
 
 namespace Nox.Sessions.Jint.Runtime {
+	/// <summary>
+	/// Owns the world scripts of a session: creates one <see cref="JintBackingSession"/> per
+	/// <see cref="IJintScript"/> and forwards the session events to them.
+	/// <para>
+	/// The scripts are not started at scene load but as soon as the session is <b>ready</b> (loaded,
+	/// with its local player registered). Started earlier, a script reading the session at load time
+	/// would freeze a null <c>players.local</c> and an empty <c>players.all</c>.
+	/// <c>onAwake</c>/<c>onStart</c> are then invoked once, when the script actually starts.
+	/// </para>
+	/// </summary>
 	public class JintBackingModule : MonoBehaviour, ISessionModule {
+		/// <summary>
+		/// Ticks to wait for the local player before starting the scripts anyway, so a session that
+		/// never provides one does not leave the world scripts dormant.
+		/// </summary>
+		private const int ReadyTimeoutTicks = 120;
+
 		#region Internal
 
 		public static bool Check(IWorldDescriptor descriptor) {
@@ -37,6 +53,34 @@ namespace Nox.Sessions.Jint.Runtime {
 		public ISession Session;
 		public List<JintBackingSession> backings = new();
 
+		/// <summary>Ticks elapsed since the scene was loaded while waiting for the local player.</summary>
+		private int _pendingTicks;
+
+		/// <summary>
+		/// True while at least one script has not been started. The scripts are started as soon as the
+		/// session is <b>ready</b>, not at scene load: a script created before the local player is
+		/// registered reads a null <c>players.local</c> and an empty <c>players.all</c>.
+		/// </summary>
+		private bool Pending
+			=> backings.Any(backing => backing && !backing.Initialized);
+
+		/// <summary>
+		/// The session is loaded and its local player is registered (or the wait timed out).
+		/// </summary>
+		private bool Ready
+			=> Session != null && (Session.LocalPlayer != null || _pendingTicks >= ReadyTimeoutTicks);
+
+		/// <summary>Start the scripts waiting for the session to be ready.</summary>
+		private void StartBackings() {
+			if (!Pending || !Ready)
+				return;
+
+			_pendingTicks = 0;
+
+			foreach (var backing in backings.Where(backing => backing))
+				backing.Initialize();
+		}
+
 		public void OnSceneLoaded(IWorldDescriptor _0, int _1, GameObject anchor) {
 			var scripts = anchor.GetComponentsInChildren<IJintScript>(true);
 			foreach (var script in scripts) {
@@ -46,17 +90,21 @@ namespace Nox.Sessions.Jint.Runtime {
 				var backing = mono!.gameObject.GetOrAddComponent<JintBackingSession>();
 				backing.module = this;
 				backing.Script = script;
-				backing.Initialize();
 				backings.Add(backing);
 			}
+
+			_pendingTicks = 0;
+			StartBackings();
 		}
 
 		public void OnSceneUnloaded(int index)
 			=> backings.RemoveAll(b => !b);
 
 
-		public void OnLoaded(ISession session)
-			=> Session = session;
+		public void OnLoaded(ISession session) {
+			Session = session;
+			StartBackings();
+		}
 
 		public void OnDestroy() {
 			foreach (var backing in backings.Where(backing => backing))
@@ -66,6 +114,8 @@ namespace Nox.Sessions.Jint.Runtime {
 		}
 
 		public void OnSessionSelected() {
+			StartBackings();
+
 			foreach (var backing in backings)
 				backing.OnSessionSelected();
 		}
@@ -76,6 +126,8 @@ namespace Nox.Sessions.Jint.Runtime {
 		}
 
 		public void OnPlayerJoined(IPlayer player) {
+			StartBackings();
+
 			foreach (var backing in backings)
 				backing.OnPlayerJoined(player);
 		}
@@ -96,6 +148,12 @@ namespace Nox.Sessions.Jint.Runtime {
 		}
 
 		public void OnTick(long tick) {
+			// Still waiting for the local player: count the ticks so the wait cannot last forever.
+			if (Pending) {
+				_pendingTicks++;
+				StartBackings();
+			}
+
 			foreach (var backing in backings)
 				backing.OnTick(tick);
 		}
