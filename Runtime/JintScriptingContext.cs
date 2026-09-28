@@ -50,7 +50,7 @@ namespace Nox.Sessions.Jint.Runtime {
 			if (value == null || _api == null)
 				return value;
 			var type      = value.GetType();
-			var converter = _api.Converters.FirstOrDefault(c => c.HandledType.IsAssignableFrom(type));
+			var converter = _api.ResolveConverter(type);
 			if (converter == null)
 				return value;
 			// If the converter declares bindings, build a Jint JS object
