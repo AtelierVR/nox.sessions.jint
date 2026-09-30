@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Jint;
@@ -19,6 +20,9 @@ namespace Nox.Sessions.Jint.Runtime {
 		private readonly JintBackingSession _backing;
 		private readonly IScriptingAPI _api;
 		private readonly CancellationTokenSource _cts = new();
+
+		/// <summary>Cache of the exact-type converter lookups (hits only).</summary>
+		private readonly Dictionary<Type, IScriptingTypeConverter> _exactConverters = new();
 
 		public JintScriptingContext(JintBackingSession backing, IScriptingAPI api) {
 			_backing = backing;
@@ -70,10 +74,7 @@ namespace Nox.Sessions.Jint.Runtime {
 		/// and passed as positional args to the constructor.
 		/// </summary>
 		public object FromScript(object scriptValue, Type targetType) {
-			IScriptingTypeConverter converter = null;
-			if (_api != null)
-				converter = _api.Converters.FirstOrDefault(c => c.HandledType == targetType);
-
+			var converter = ResolveExactConverter(targetType);
 			// Already the right type — pass through
 			if (scriptValue != null && targetType.IsInstanceOfType(scriptValue))
 				return scriptValue;
@@ -109,6 +110,32 @@ namespace Nox.Sessions.Jint.Runtime {
 			} catch {
 				return ResolveDefault(converter.Default, this);
 			}
+		}
+
+		/// <summary>
+		/// Resolves the converter whose handled type is exactly <paramref name="targetType"/>.
+		/// <para>
+		/// The lookup used to be a LINQ scan allocating a closure on every call: it now walks the
+		/// (short) converter list by index and caches the hits. Misses stay uncached so a converter
+		/// registered after the fact is still picked up.
+		/// </para>
+		/// </summary>
+		private IScriptingTypeConverter ResolveExactConverter(Type targetType) {
+			if (_api == null)
+				return null;
+
+			if (_exactConverters.TryGetValue(targetType, out var cached))
+				return cached;
+
+			var converters = _api.Converters;
+			for (var i = 0; i < converters.Count; i++) {
+				if (converters[i].HandledType != targetType)
+					continue;
+				_exactConverters[targetType] = converters[i];
+				return converters[i];
+			}
+
+			return null;
 		}
 
 		/// <summary>

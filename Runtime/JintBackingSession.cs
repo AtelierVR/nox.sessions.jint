@@ -33,6 +33,43 @@ namespace Nox.Sessions.Jint.Runtime {
 		private JintScriptingContext _context;
 		private const int SCRIPT_TIMEOUT_MS = 10000;
 
+		/// <summary>
+		/// Cache of the resolved exported functions, keyed by hook name.
+		/// <para>
+		/// Unity drives a dozen messages per frame (<c>Update</c>, <c>LateUpdate</c>, <c>OnGUI</c>,
+		/// <c>OnPreCull</c>, <c>OnPreRender</c>, …) and the session forwards the network ticks too:
+		/// resolving a hook through the module namespace allocates a JS string and walks the exports
+		/// every time. Exports of an evaluated module never change, so the lookup is cached
+		/// (including the “not exported” case, the most frequent one).
+		/// The cache is dropped whenever the engine is rebuilt (<see cref="Initialize"/>/<see cref="OnDestroy"/>).
+		/// </para>
+		/// </summary>
+		private readonly Dictionary<string, JsValue> _methodCache = new(StringComparer.Ordinal);
+
+		/// <summary>Empty argument list shared by every parameterless hook call.</summary>
+		private static readonly JsValue[] EmptyJsArgs = Array.Empty<JsValue>();
+
+		/// <summary>Resolves an exported function of the script module, caching the result.</summary>
+		private JsValue ResolveMethod(string method) {
+			if (_methodCache.TryGetValue(method, out var cached))
+				return cached;
+
+			var methodRef = Context != null ? Context.Get(method) : JsValue.Undefined;
+			_methodCache[method] = methodRef;
+			return methodRef;
+		}
+
+		/// <summary>Converts .NET arguments to JS values through the registered converters.</summary>
+		private JsValue[] ToJsArgs(object[] args) {
+			if (args == null || args.Length == 0)
+				return EmptyJsArgs;
+
+			var jsArgs = new JsValue[args.Length];
+			for (var i = 0; i < args.Length; i++)
+				jsArgs[i] = JintTypeAdapter.ToValue(Engine, args[i], _context);
+			return jsArgs;
+		}
+
 		/// <summary>True once the engine exists — i.e. once the session was ready and the script started.</summary>
 		public bool Initialized
 			=> _initialized;
@@ -72,6 +109,7 @@ namespace Nox.Sessions.Jint.Runtime {
 
 				Engine.Modules.Add("__main__", Script.GetContent());
 				Context = Engine.Modules.Import("__main__");
+				_methodCache.Clear();
 				_initialized = true;
 
 				try {
@@ -128,14 +166,11 @@ namespace Nox.Sessions.Jint.Runtime {
 					_startInvoked = true;
 				}
 					
-				var methodRef = Context.Get(method);
+				var methodRef = ResolveMethod(method);
 				if (methodRef.IsUndefined())
 					return;
 
-				var jsArgs = new JsValue[args.Length];
-				for (var i = 0; i < args.Length; i++)
-					jsArgs[i] = JintTypeAdapter.ToValue(Engine, args[i], _context);
-				Engine.Invoke(methodRef, jsArgs);
+				Engine.Invoke(methodRef, ToJsArgs(args));
 			} catch (JavaScriptException jsEx) {
 				Logger.LogError(
 					$"{method}(): {jsEx.Message}\n"
@@ -154,27 +189,11 @@ namespace Nox.Sessions.Jint.Runtime {
 				if (!_initialized)
 					return null;
 
-				var methodRef = Context.Get(method);
+				var methodRef = ResolveMethod(method);
 				if (methodRef.IsUndefined())
 					return null;
 
-				// Convert arguments to JsValue to avoid InvalidCastException
-				var jsArgs = new JsValue[ args.Length ];
-				for (var i = 0; i < args.Length; i++) {
-					if (args[i] is byte[] bytes) {
-						var jsArray = Engine.Intrinsics.Array.Construct(bytes.Length);
-						for (var j = 0; j < bytes.Length; j++) {
-							jsArray[(uint)j] = JsValue.FromObject(Engine, bytes[j]);
-						}
-						jsArgs[i] = jsArray;
-					} else if (args[i] is IPlayer player) {
-						jsArgs[i] = ObjectWrapper.Create(Engine, player, player.GetType());
-					} else {
-						jsArgs[i] = JsValue.FromObject(Engine, args[i]);
-					}
-				}
-
-				return Engine.Invoke(methodRef, jsArgs);
+				return Engine.Invoke(methodRef, ToJsArgs(args));
 			} catch (Exception e) {
 				Logger.LogError(new Exception($"Error invoking method '{method}'", e), this);
 				return null;
@@ -186,27 +205,11 @@ namespace Nox.Sessions.Jint.Runtime {
 				if (!_initialized)
 					return default;
 
-				var methodRef = Context.Get(method);
+				var methodRef = ResolveMethod(method);
 				if (methodRef.IsUndefined())
 					return default;
 
-				// Convert arguments to JsValue to avoid InvalidCastException
-				var jsArgs = new JsValue[ args.Length ];
-				for (var i = 0; i < args.Length; i++) {
-					if (args[i] is byte[] bytes) {
-						var jsArray = Engine.Intrinsics.Array.Construct(bytes.Length);
-						for (var j = 0; j < bytes.Length; j++) {
-							jsArray[(uint)j] = JsValue.FromObject(Engine, bytes[j]);
-						}
-						jsArgs[i] = jsArray;
-					} else if (args[i] is IPlayer player) {
-						jsArgs[i] = ObjectWrapper.Create(Engine, player, player.GetType());
-					} else {
-						jsArgs[i] = JsValue.FromObject(Engine, args[i]);
-					}
-				}
-
-				var result = Engine.Invoke(methodRef, jsArgs);
+				var result = Engine.Invoke(methodRef, ToJsArgs(args));
 				return (T)result.ToObject();
 			} catch (Exception e) {
 				Logger.LogError(new Exception($"Error invoking method '{method}'", e), this);
@@ -225,6 +228,7 @@ namespace Nox.Sessions.Jint.Runtime {
 			Engine.Dispose();
 			Engine  = null;
 			Context = null;
+			_methodCache.Clear();
 		}
 
         public void OnSessionSelected()
