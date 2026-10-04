@@ -53,13 +53,16 @@ namespace Nox.Sessions.Jint.Runtime {
 		public object ToScript(object value) {
 			if (value == null || _api == null)
 				return value;
+			var engine = _backing.Engine;
+			if (engine == null)
+				return value;
 			var type      = value.GetType();
 			var converter = _api.ResolveConverter(type);
 			if (converter == null)
 				return value;
 			// If the converter declares bindings, build a Jint JS object
 			if (converter.Bindings.Count > 0)
-				return JintTypeAdapter.BuildInstance(_backing.Engine, converter, value, this);
+				return JintTypeAdapter.BuildInstance(engine, converter, value, this);
 			// Otherwise delegate to ToScript for raw conversion
 			return converter.ToScript(this, value);
 		}
