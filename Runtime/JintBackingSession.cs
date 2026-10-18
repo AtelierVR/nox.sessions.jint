@@ -27,7 +27,6 @@ namespace Nox.Sessions.Jint.Runtime {
 		public string[] Tags = { "session" };
 
 		private bool _initialized;
-		private bool _destroyed;
 		private bool _awakeInvoked;
 		private bool _startInvoked;
 		private JintScriptingContext _context;
@@ -218,17 +217,18 @@ namespace Nox.Sessions.Jint.Runtime {
 		}
 
 		public void OnDestroy() {
-			if (_destroyed)
-				return;
-			_destroyed = true;
-			if (Engine == null)
-				return;
-			Main.CoreAPI.EventAPI.Emit("jint_engine_destroyed", this, Engine);
-			_context?.Dispose();
-			Engine.Dispose();
-			Engine  = null;
-			Context = null;
-			_methodCache.Clear();
+			// The engine is gone: a JintScript that still holds this backing must not consider it
+			// started, otherwise its hooks are silently dropped instead of reaching a new backing.
+			_initialized = false;
+
+			if (Engine != null) {
+				Main.CoreAPI.EventAPI.Emit("jint_engine_destroyed", this, Engine);
+				_context?.Dispose();
+				Engine.Dispose();
+				Engine  = null;
+				Context = null;
+				_methodCache.Clear();
+			}
 		}
 
         public void OnSessionSelected()
@@ -254,6 +254,18 @@ namespace Nox.Sessions.Jint.Runtime {
 
 		public void OnTickRateChanged(int tickRate)
 			=> Invoke("onTickRateChanged", tickRate);
+
+		public void OnReconnecting(int attempt)
+			=> Invoke("onReconnecting", attempt);
+
+		public void OnReconnected()
+			=> Invoke("onReconnected");
+
+		public void OnConnected()
+			=> Invoke("onConnected");
+
+		public void OnDisconnected(string reason)
+			=> Invoke("onDisconnected", reason);
 
 		public void OnDrawGizmos()
 			=> Invoke("onGizmo");

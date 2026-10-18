@@ -4,7 +4,6 @@ using Cysharp.Threading.Tasks;
 using Nox.CCK.Utils;
 using Nox.Jint;
 using Nox.Players;
-using Nox.Sessions;
 using Nox.Worlds;
 using UnityEngine;
 using Logger = Nox.CCK.Utils.Logger;
@@ -56,6 +55,12 @@ namespace Nox.Sessions.Jint.Runtime {
 		/// <summary>Ticks elapsed since the scene was loaded while waiting for the local player.</summary>
 		private int _pendingTicks;
 
+		/// <summary>Whether the session is currently connected (replayed to scripts starting late).</summary>
+		private bool _connected;
+
+		/// <summary>Container of the scene instance that owns the scripts (the value given by <see cref="OnSceneLoaded"/>).</summary>
+		private GameObject _anchor;
+
 		/// <summary>
 		/// True while at least one script has not been started. The scripts are started as soon as the
 		/// session is <b>ready</b>, not at scene load: a script created before the local player is
@@ -70,6 +75,55 @@ namespace Nox.Sessions.Jint.Runtime {
 		private bool Ready
 			=> Session != null && (Session.LocalPlayer != null || _pendingTicks >= ReadyTimeoutTicks);
 
+		/// <summary>The current scene-instance container, or <c>null</c> when it cannot be resolved.</summary>
+		private GameObject CurrentAnchor {
+			get {
+				if (_anchor)
+					return _anchor;
+
+				var dimensions = Session?.Dimensions;
+				if (dimensions != null && dimensions.IsLoaded(0) && dimensions.GetAnchor(0) is { } anchor)
+					return _anchor = anchor;
+
+				return transform.root != null 
+					? transform.root.gameObject 
+					: null;
+			}
+		}
+
+		/// <summary>
+		/// Registers every <see cref="IJintScript"/> of the current scene instance that has no backing,
+		/// and drops the references destroyed with a previous instance.
+		/// <para>
+		/// Only the module located <b>inside</b> the instance container may own its scripts. The template
+		/// built by <c>WorldSetup</c> (<c>[Reference] T</c>) shares the scene with the live instance and
+		/// is itself an <see cref="ISessionModule"/>: without this guard it registered backings on the
+		/// live scripts (sharing the very same components), then destroyed them on its own teardown,
+		/// leaving the live instance with dead backings and frozen scripts.
+		/// </para>
+		/// </summary>
+		private void EnsureBackings() {
+			var anchor = CurrentAnchor;
+			if (!anchor || !transform.IsChildOf(anchor.transform))
+				return;
+
+			foreach (var script in anchor.GetComponentsInChildren<IJintScript>(true)) {
+				if (script == null)
+					continue;
+				if (backings.Any(backing => backing && ReferenceEquals(backing.Script, script)))
+					continue;
+				if (script is not MonoBehaviour mono)
+					continue;
+
+				var backing = mono.gameObject.GetOrAddComponent<JintBackingSession>();
+				backing.module = this;
+				backing.Script = script;
+				backings.Add(backing);
+			}
+
+			backings.RemoveAll(backing => !backing);
+		}
+
 		/// <summary>Start the scripts waiting for the session to be ready.</summary>
 		private void StartBackings() {
 			if (!Pending || !Ready)
@@ -77,21 +131,21 @@ namespace Nox.Sessions.Jint.Runtime {
 
 			_pendingTicks = 0;
 
-			foreach (var backing in backings.Where(backing => backing))
+			foreach (var backing in backings.Where(backing => backing)) {
+				if (backing.Initialized)
+					continue;
+
 				backing.Initialize();
+				if (_connected)
+					backing.OnConnected();
+			}
 		}
 
 		public void OnSceneLoaded(IWorldDescriptor _0, int _1, GameObject anchor) {
-			var scripts = anchor.GetComponentsInChildren<IJintScript>(true);
-			foreach (var script in scripts) {
-				var mono = script as MonoBehaviour;
-				if (backings.Any(b => b && ReferenceEquals(b.Script, script)))
-					continue;
-				var backing = mono!.gameObject.GetOrAddComponent<JintBackingSession>();
-				backing.module = this;
-				backing.Script = script;
-				backings.Add(backing);
-			}
+			if (anchor)
+				_anchor = anchor;
+
+			EnsureBackings();
 
 			_pendingTicks = 0;
 			StartBackings();
@@ -103,6 +157,7 @@ namespace Nox.Sessions.Jint.Runtime {
 
 		public void OnLoaded(ISession session) {
 			Session = session;
+			EnsureBackings();
 			StartBackings();
 		}
 
@@ -116,34 +171,34 @@ namespace Nox.Sessions.Jint.Runtime {
 		public void OnSessionSelected() {
 			StartBackings();
 
-			foreach (var backing in backings)
+			foreach (var backing in backings.Where(backing => backing))
 				backing.OnSessionSelected();
 		}
 
 		public void OnSessionDeselected() {
-			foreach (var backing in backings)
+			foreach (var backing in backings.Where(backing => backing))
 				backing.OnSessionDeselected();
 		}
 
 		public void OnPlayerJoined(IPlayer player) {
 			StartBackings();
 
-			foreach (var backing in backings)
+			foreach (var backing in backings.Where(backing => backing))
 				backing.OnPlayerJoined(player);
 		}
 
 		public void OnPlayerLeft(IPlayer player) {
-			foreach (var backing in backings)
+			foreach (var backing in backings.Where(backing => backing))
 				backing.OnPlayerLeft(player);
 		}
 
 		public void OnAuthorityTransferred(IPlayer @new) {
-			foreach (var backing in backings)
+			foreach (var backing in backings.Where(backing => backing))
 				backing.OnAuthorityTransferred(@new);
 		}
 
 		public void OnEvent(long @event, byte[] payload, IPlayer sender) {
-			foreach (var backing in backings)
+			foreach (var backing in backings.Where(backing => backing))
 				backing.OnEvent(@event, payload, sender);
 		}
 
@@ -154,13 +209,40 @@ namespace Nox.Sessions.Jint.Runtime {
 				StartBackings();
 			}
 
-			foreach (var backing in backings)
+			foreach (var backing in backings.Where(backing => backing))
 				backing.OnTick(tick);
 		}
 
 		public void OnTickRateChanged(int tickRate) {
-			foreach (var backing in backings)
+			foreach (var backing in backings.Where(backing => backing))
 				backing.OnTickRateChanged(tickRate);
+		}
+
+		public void OnReconnecting(int attempt) {
+			foreach (var backing in backings.Where(backing => backing))
+				backing.OnReconnecting(attempt);
+		}
+
+		public void OnReconnected() {
+			foreach (var backing in backings.Where(backing => backing))
+				backing.OnReconnected();
+		}
+
+		public void OnConnected() {
+			if (_connected)
+				return;
+
+			_connected = true;
+
+			foreach (var backing in backings.Where(backing => backing))
+				backing.OnConnected();
+		}
+
+		public void OnDisconnected(string reason) {
+			_connected = false;
+
+			foreach (var backing in backings.Where(backing => backing))
+				backing.OnDisconnected(reason);
 		}
 	}
 }
