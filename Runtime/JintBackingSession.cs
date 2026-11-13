@@ -36,7 +36,7 @@ namespace Nox.Sessions.Jint.Runtime {
 		/// Cache of the resolved exported functions, keyed by hook name.
 		/// <para>
 		/// Unity drives a dozen messages per frame (<c>Update</c>, <c>LateUpdate</c>, <c>OnGUI</c>,
-		/// <c>OnPreCull</c>, <c>OnPreRender</c>, …) and the session forwards the network ticks too:
+		/// <c>OnPreCull</c>, <c>OnPreRender</c>, ...) and the session forwards the network ticks too:
 		/// resolving a hook through the module namespace allocates a JS string and walks the exports
 		/// every time. Exports of an evaluated module never change, so the lookup is cached
 		/// (including the “not exported” case, the most frequent one).
@@ -164,7 +164,7 @@ namespace Nox.Sessions.Jint.Runtime {
 						return;
 					_startInvoked = true;
 				}
-					
+
 				var methodRef = ResolveMethod(method);
 				if (methodRef.IsUndefined())
 					return;

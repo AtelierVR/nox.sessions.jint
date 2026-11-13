@@ -2,6 +2,7 @@
   "name": "Nox.Sessions.Jint.Runtime",
   "rootNamespace": "Nox.Sessions.Jint.Runtime",
   "references": [
+    "Nox.CCK.Assets",
     "Nox.CCK",
     "UniTask",
     "Nox.Sessions",
