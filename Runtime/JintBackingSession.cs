@@ -224,6 +224,7 @@ namespace Nox.Sessions.Jint.Runtime {
 			if (Engine != null) {
 				Main.CoreAPI.EventAPI.Emit("jint_engine_destroyed", this, Engine);
 				_context?.Dispose();
+				JintTypeAdapter.ClearInstanceCache(Engine);
 				Engine.Dispose();
 				Engine  = null;
 				Context = null;
