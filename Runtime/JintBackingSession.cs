@@ -12,6 +12,7 @@ using Logger = Nox.CCK.Utils.Logger;
 using Jint.Runtime;
 using Jint.Runtime.Interop;
 using Nox.CCK.Scripting;
+using Nox.Entities;
 using Nox.Jint.Runtime;
 
 namespace Nox.Sessions.Jint.Runtime {
@@ -270,5 +271,44 @@ namespace Nox.Sessions.Jint.Runtime {
 
 		public void OnDrawGizmos()
 			=> Invoke("onGizmo");
+
+		/// <summary>Forward a new entity of the session (spawn).</summary>
+		public void OnEntitySpawned(IEntity entity)
+			=> Invoke("onEntitySpawned", entity);
+
+		/// <summary>Forward an entity that left the session (despawn / remove).</summary>
+		public void OnEntityRemoved(IEntity entity)
+			=> Invoke("onEntityRemoved", entity);
+
+		/// <summary>Forward the new owner of an entity and the one it replaces.</summary>
+		public void OnOwnershipChanged(IEntity entity, IPlayer @new, IPlayer old)
+			=> Invoke("onOwnershipChanged", entity, @new, old);
+
+		/// <summary>
+		/// Ask the script whether an ownership request may be granted, through its
+		/// <c>onOwnershipRequested(entity, requester, receiver)</c> hook.
+		/// </summary>
+		/// <returns>
+		/// Whether the script answered with a boolean (<c>false</c> when it has no such hook, when it
+		/// returns nothing or when it returns anything else than a boolean: it then leaves the decision
+		/// to the other scripts).
+		/// </returns>
+		public bool TryDecideOwnership(
+			IEntity entity,
+			IPlayer requester,
+			IPlayer receiver,
+			out bool accepted
+		) {
+			accepted = true;
+
+			if (!_initialized || ResolveMethod("onOwnershipRequested").IsUndefined())
+				return false;
+
+			if (Call<object>("onOwnershipRequested", new object[] { entity, requester, receiver }) is not bool answer)
+				return false;
+
+			accepted = answer;
+			return true;
+		}
 	}
 }

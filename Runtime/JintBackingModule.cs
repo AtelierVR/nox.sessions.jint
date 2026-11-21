@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using Nox.CCK.Utils;
+using Nox.Entities;
 using Nox.Jint;
 using Nox.Players;
 using Nox.Worlds;
@@ -19,7 +20,7 @@ namespace Nox.Sessions.Jint.Runtime {
 	/// <c>onAwake</c>/<c>onStart</c> are then invoked once, when the script actually starts.
 	/// </para>
 	/// </summary>
-	public class JintBackingModule : MonoBehaviour, ISessionModule {
+	public class JintBackingModule : MonoBehaviour, ISessionModule, IOwnershipDecision, IOwnershipListener {
 		/// <summary>
 		/// Ticks to wait for the local player before starting the scripts anyway, so a session that
 		/// never provides one does not leave the world scripts dormant.
@@ -85,8 +86,8 @@ namespace Nox.Sessions.Jint.Runtime {
 				if (dimensions != null && dimensions.IsLoaded(0) && dimensions.GetAnchor(0) is { } anchor)
 					return _anchor = anchor;
 
-				return transform.root != null 
-					? transform.root.gameObject 
+				return transform.root != null
+					? transform.root.gameObject
 					: null;
 			}
 		}
@@ -243,6 +244,49 @@ namespace Nox.Sessions.Jint.Runtime {
 
 			foreach (var backing in backings.Where(backing => backing))
 				backing.OnDisconnected(reason);
+		}
+
+		public void OnEntityRegistered(IEntity entity) {
+			foreach (var backing in backings.Where(backing => backing))
+				backing.OnEntitySpawned(entity);
+		}
+
+		public void OnEntityUnregistered(IEntity entity) {
+			foreach (var backing in backings.Where(backing => backing))
+				backing.OnEntityRemoved(entity);
+		}
+
+		public void OnOwnershipChanged(IEntity entity, IPlayer @new, IPlayer old) {
+			foreach (var backing in backings.Where(backing => backing))
+				backing.OnOwnershipChanged(entity, @new, old);
+		}
+
+		/// <summary>
+		/// Ask the world scripts whether an ownership request may be granted, through their
+		/// <c>onOwnershipRequested</c> hook. A single refusal wins.
+		/// </summary>
+		public bool TryDecideOwnership(
+			IEntity entity,
+			IPlayer requester,
+			IPlayer receiver,
+			out bool accepted
+		) {
+			accepted = true;
+			var answered = false;
+
+			foreach (var backing in backings.Where(backing => backing && backing.Initialized)) {
+				if (!backing.TryDecideOwnership(entity, requester, receiver, out var script))
+					continue;
+
+				if (!script) {
+					accepted = false;
+					return true;
+				}
+
+				answered = true;
+			}
+
+			return answered;
 		}
 	}
 }
